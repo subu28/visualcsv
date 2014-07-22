@@ -1,6 +1,6 @@
 <?php
-//check for any post variables. if there are any then check for csv file. explode the data by newline and then further by commas.
 $okay = 0;
+// function to parse and convert to transfer format
 function parser($contents){
     $rows = preg_split( '/\r\n|\r|\n/', $contents );
     $axis = explode(',',$rows[0]);
@@ -38,8 +38,6 @@ function parser($contents){
     $string2 = substr_replace($string2, '', -1);
     $string2.="];";
     
-    
-    
     //read diction and throw out values.
     $string3= "diction=[";
     foreach($diction as $dict){
@@ -56,6 +54,8 @@ function parser($contents){
     
     return $string1.$string2.$string3;
 }
+
+//if a file is recieved then it is opened and sent for parsing
 if(isset($_POST['typ'])) {
     foreach($_FILES as $treat){
         $temp = explode(".", $treat["name"]);
@@ -70,6 +70,7 @@ if(isset($_POST['typ'])) {
                 $filename = $treat["tmp_name"];
                 $handle = fopen($filename, "r");
                 $contents = fread($handle, filesize($filename));
+                fclose($handle);
                 $okay = 1;
                 $filename =$treat["name"];
                 $handle = fopen($filename,"w");
@@ -79,9 +80,17 @@ if(isset($_POST['typ'])) {
         }
         else
         {
-            echo "Invalid file";
+            echo "Invalid file or Tooooo large";
         }
     }
+}
+//if get variables arrive then the cummulitive results are shown
+elseif(isset($_GET['source'])){
+    $filename=$_GET['source'];
+    $okay=2;
+    $gets=array();
+    foreach($_GET as $get)
+    $gets[sizeof($gets)]=$get;
 }
 ?>
 <!DOCTYPE html>
@@ -112,12 +121,26 @@ if(isset($_POST['typ'])) {
 </body>
 <script type="text/javascript">
     <?php
-        if($okay==1){
+        if($okay>0){
             $handle = fopen($filename, "r");
             $contents = fread($handle, filesize($filename));
             echo($contents );
+            fclose($handle);
+            
+            if($okay==1){
+                echo "window.onload=function(){drawtable();showconsole();};";
+            }
+            else{
+                $string1="charts=[";
+                for($i=1;$i<sizeof($gets);$i++){
+                    $string1.= "[".$gets[$i]."],";
+                }
+                $string1 = substr_replace($string1, '', -1);
+                $string1.="];";
+                echo $string1;
+                echo "window.onload=function(){drawtable();showcharts();};";
+            }
         }
     ?>
-    window.onload=function(){drawtable()};
 </script>
 </html>
