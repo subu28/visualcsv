@@ -1,7 +1,90 @@
 <?php
 //check for any post variables. if there are any then check for csv file. explode the data by newline and then further by commas.
+$okay = 0;
+function parser($contents){
+    $rows = preg_split( '/\r\n|\r|\n/', $contents );
+    $axis = explode(',',$rows[0]);
+    
+    $string1 = "axis=[";
+    foreach ($axis as $item){
+        $string1.="'".$item."',";
+    }
+    $string1 = substr_replace($string1, '', -1);
+    $string1.="];";
+    //get the headings and throw them out
+    $cols=sizeof($axis);
+    $diction = array($cols);
+    for($i=0;$i<$cols;$i++){
+        $diction[$i] = array();
+    }
+    
+    $string2 = "values=[";
+    for($i = 1;$i<sizeof($rows)-1;$i++){   //assumed that csv has newline at the end always                     //for  every row
+        $string2.="[";
+        $vals = explode(',',$rows[$i]);                         //the data is seperated
+        for($j=0;$j<$cols;$j++){                                //for each seperate data
+            $pos = array_search($vals[$j],$diction[$j]);        //check if value is in diction
+            if ($pos === false){                                //if it is not there 
+                $string2 .=sizeof($diction[$j]).",";
+                $diction[$j][sizeof($diction[$j])]=$vals[$j];   //add to diction
+            }
+            else{
+                $string2 .=$pos.",";                       // if its there, just note its position in diction
+            }
+        }
+        $string2 = substr_replace($string2, '', -1);
+        $string2.="],";
+    }
+    $string2 = substr_replace($string2, '', -1);
+    $string2.="];";
+    
+    
+    
+    //read diction and throw out values.
+    $string3= "diction=[";
+    foreach($diction as $dict){
+        $string3.="[";
+        foreach($dict as $entry){
+            $string3.="'".$entry."',";
+        }
+        $string3 = substr_replace($string3, '', -1);
+        $string3.="],";
+    }
+    $string3 = substr_replace($string3, '', -1);
+    $string3.= "];";
+    
+    
+    return $string1.$string2.$string3;
+}
+if(isset($_POST['typ'])) {
+    foreach($_FILES as $treat){
+        $temp = explode(".", $treat["name"]);
+        if (($treat["size"] < 10000000) && end($temp)=="csv")
+        {
+            if ($treat["error"] > 0)
+            {
+                echo "Return Code: " . $treat["error"] . "<br>";
+            }
+            else
+            {
+                $filename = $treat["tmp_name"];
+                $handle = fopen($filename, "r");
+                $contents = fread($handle, filesize($filename));
+                $okay = 1;
+                $filename =$treat["name"];
+                $handle = fopen($filename,"w");
+                fwrite($handle,parser($contents));
+                fclose($handle);
+            }
+        }
+        else
+        {
+            echo "Invalid file";
+        }
+    }
+}
 ?>
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <title>VisualCSV</title>
@@ -15,6 +98,7 @@
         }
     </style>
     <script src="d3.v3.min.js" charset="utf-8"></script>
+    <script src="visualcsv.js" type="text/javascript"></script>
 </head>
 <body>
     <h1>VisualCSV</h1>
@@ -23,72 +107,17 @@
         <label for="file">Choose a csv file to upload:</label>
         <input type="file" name="file" id="file"><br>
         <input type="submit" name="submit" value="Submit">
+        <input type="hidden" name="typ" value="upload">
     </form>
 </body>
 <script type="text/javascript">
-    //standard functions
-    function drawtable(){
-        cols=axis.length;
-        rows=values.length;
-        var row = document.createElement("tr");
-        for (var i=0;i<cols;i++) {
-            row.innerHTML+="<th>"+axis[i]+"</th>"
+    <?php
+        if($okay==1){
+            $handle = fopen($filename, "r");
+            $contents = fread($handle, filesize($filename));
+            echo($contents );
         }
-        var table=document.createElement("table");
-        table.appendChild(row);
-        for(var i=0;i<rows;i++){
-            row = document.createElement("tr");
-            for (var j=0;j<cols;j++) {
-                row.innerHTML+="<td>"+diction[j][values[i][j]]+"</td>";
-            }
-            table.appendChild(row);
-        }
-        document.getElementById("results").appendChild(table);
-        drawchart(0,3);
-    }
-    function drawchart(x,y){
-        d3.select("#results").append("svg").style("width","500px").style("height","500px");
-        var svg = d3.select( d3.selectAll("svg")[0].pop() );
-        var xscale = d3.scale.ordinal()
-            .domain(diction[x])
-            .rangeBands([50,450]);
-        var yscale = d3.scale.ordinal()
-            .domain(diction[y])
-            .rangeBands([450,50]);
-        var xaxis = d3.svg.axis().scale(xscale);
-        var yaxis = d3.svg.axis().scale(yscale).orient("left");
-        svg.append("svg:g").call(xaxis).attr("transform","translate(0,450)");
-        svg.append("svg:g").call(yaxis).attr("transform", "translate(50,0)");
-        var circle = svg.selectAll("circle").data(datagen(x,y));
-        var circleEnter = circle.enter().append("circle");
-        circleEnter.attr("cy",60).attr("cx",function(d){return 50+ ((d.x+0.5)*400/diction[x].length)}).attr("cy",function(d){return 450 - ((d.y+0.5)*400/diction[y].length)}).attr("r",function(d){return Math.sqrt(1000*d.ar/rows)});
-    }
-    function datagen(x,y) {
-        var data = new Array;
-        for (var i=0;i<diction[x].length;i++) {
-            for (var j=0;j<diction[y].length;j++) {
-                ar=0;
-                for (var k=0;k<rows;k++){
-                    if (values[k][x]==i && values[k][y]==j) {
-                        ar++
-                    }
-                }
-                data[data.length] = {"x":i,"y":j,"ar":ar}
-            }
-        }
-        console.log(data);
-        return data;
-    }
-    //the below lines should be generated by php script later on
-    axis=["Name","Age","Gender","City","Mobile Operator"];
-    diction=[
-             ["Sara","Floriana","Raghav","Meghna","Sumit"],
-             ["32","36","24","21","27"],
-             ["Female","Male"],
-             ["Delhi","Mumbai"],
-             ["Airtel","Vodafone"]
-            ];
-    values = [[0,0,0,0,0],[1,1,0,0,1],[2,2,1,1,1],[3,3,0,1,1],[4,4,1,0,0]];
+    ?>
     window.onload=function(){drawtable()};
 </script>
 </html>
