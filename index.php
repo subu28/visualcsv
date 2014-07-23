@@ -11,25 +11,27 @@ function parser($contents){
     }
     $string1 = substr_replace($string1, '', -1);
     $string1.="];";
-    //get the headings and throw them out
+
+//get the headings and throw them out
     $cols=sizeof($axis);
     $diction = array($cols);
     for($i=0;$i<$cols;$i++){
         $diction[$i] = array();
     }
-    
+
+//build a dictionary and throw out the map
     $string2 = "values=[";
-    for($i = 1;$i<sizeof($rows)-1;$i++){   //assumed that csv has newline at the end always                     //for  every row
+    for($i = 1;$i<sizeof($rows)-1;$i++){
         $string2.="[";
-        $vals = explode(',',$rows[$i]);                         //the data is seperated
-        for($j=0;$j<$cols;$j++){                                //for each seperate data
-            $pos = array_search($vals[$j],$diction[$j]);        //check if value is in diction
-            if ($pos === false){                                //if it is not there 
+        $vals = explode(',',$rows[$i]);
+        for($j=0;$j<$cols;$j++){
+            $pos = array_search($vals[$j],$diction[$j]);
+            if ($pos === false){
                 $string2 .=sizeof($diction[$j]).",";
-                $diction[$j][sizeof($diction[$j])]=$vals[$j];   //add to diction
+                $diction[$j][sizeof($diction[$j])]=$vals[$j];
             }
             else{
-                $string2 .=$pos.",";                       // if its there, just note its position in diction
+                $string2 .=$pos.",";
             }
         }
         $string2 = substr_replace($string2, '', -1);
@@ -38,7 +40,7 @@ function parser($contents){
     $string2 = substr_replace($string2, '', -1);
     $string2.="];";
     
-    //read diction and throw out values.
+//read dictionary created and throw out
     $string3= "diction=[";
     foreach($diction as $dict){
         $string3.="[";
@@ -50,7 +52,6 @@ function parser($contents){
     }
     $string3 = substr_replace($string3, '', -1);
     $string3.= "];";
-    
     
     return $string1.$string2.$string3;
 }
@@ -84,6 +85,7 @@ if(isset($_POST['typ'])) {
         }
     }
 }
+
 //if get variables arrive then the cummulitive results are shown
 elseif(isset($_GET['source'])){
     $filename=$_GET['source'];
@@ -126,7 +128,7 @@ elseif(isset($_GET['source'])){
             $contents = fread($handle, filesize($filename));
             echo($contents );
             fclose($handle);
-            
+            echo "source = '".$filename."';";
             if($okay==1){
                 echo "window.onload=function(){drawtable();showconsole();};";
             }
